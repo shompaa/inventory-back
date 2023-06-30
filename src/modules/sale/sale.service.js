@@ -9,7 +9,10 @@ import { uuid } from "../../utils/index.js";
 export const findSales = async ({ limit }) => {
   try {
     const ref = db.ref("/sales");
-    const snapshot = await ref.orderByKey().limitToFirst(limit).once("value");
+    const snapshot = await ref
+      .orderByChild("date")
+      // .limitToFirst(limit)
+      .once("value");
     const sales = snapshot.val();
 
     if (!sales) {
@@ -19,10 +22,10 @@ export const findSales = async ({ limit }) => {
       };
     }
 
-    const salesWithId = Object.entries(sales).map(([id, sale]) => ({
-      ...sale,
-      id,
-    }));
+    const salesWithId = Object.entries(sales)
+      .map(([id, sale]) => ({ ...sale, id }))
+      .filter((sale) => sale.deleted !== true);
+    salesWithId.reverse();
 
     return {
       data: salesWithId,
@@ -51,8 +54,11 @@ export const findSaleById = async (id) => {
 
 export const createSale = async (sale) => {
   try {
-    const { total, products, user } = sale;
-    const date = new Date().toISOString();
+    const { total, products, user, voucher } = sale;
+    const dateInChile = new Date().toLocaleString("en-US", {
+      timeZone: "America/Santiago",
+    });
+    const date = new Date(dateInChile).toISOString();
     let totalNuevo = 0;
     let productDetails = [];
     const orderId = uuid();
@@ -78,16 +84,18 @@ export const createSale = async (sale) => {
 
     if (totalNuevo !== total) {
       throw new createHttpError(
-        `Product total ${product.total} does not match with the calculated total ${productTotal}`
+        `Product total ${total} does not match with the calculated total ${totalNuevo}`
       );
     }
 
     const newSale = {
       orderId,
+      voucher,
       seller: user,
       products: productDetails,
       total,
       date,
+      deleted: false,
     };
 
     const newSaleRef = db.ref("/sales").push();
