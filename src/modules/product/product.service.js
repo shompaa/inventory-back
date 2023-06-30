@@ -56,7 +56,6 @@ export const findProductsBySearchParam = async ({ searchParam, limit }) => {
         product.sku.toLowerCase().includes(searchParam.toLowerCase())
     );
 
-    
     if (!filteredProducts) {
       return {
         data: [],
@@ -65,7 +64,7 @@ export const findProductsBySearchParam = async ({ searchParam, limit }) => {
     }
 
     return {
-      data: filteredProducts.slice(0, limit), 
+      data: filteredProducts.slice(0, limit),
       total: filteredProducts.length,
     };
   } catch (error) {
@@ -206,3 +205,34 @@ export const subtractProductStock = async (id, quantityToSubtract) => {
     throw error;
   }
 };
+
+export const findProductsWithLowStock = async ({ limit }) => {
+  try {
+    const ref = db.ref("/products");
+    const snapshot = await ref.limitToFirst(limit).once("value");
+    const products = snapshot.val();
+
+    const productsWithId = Object.entries(products).map(([id, product]) => {
+      return { ...product, id };
+    });
+
+    const filteredProducts = productsWithId.filter(
+      (product) => product.stock <= 8
+    );
+
+    if (!filteredProducts) {
+      return {
+        data: [],
+        total: 0,
+      };
+    }
+
+    return {
+      data: filteredProducts,
+      total: filteredProducts.length,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+

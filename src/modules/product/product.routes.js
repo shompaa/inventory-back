@@ -8,9 +8,11 @@ import {
   deleteProduct,
   updateProductStock,
   getProductsBySearch,
+  getProductsWithLowStock,
 } from "./product.controller.js";
 import {
   JWTValidation,
+  RoleValidation,
   Validation,
 } from "../../middlewares/index.middleware.js";
 
@@ -18,6 +20,11 @@ const router = express.Router();
 
 router.get("/", JWTValidation, getProducts);
 router.get("/search/:search", JWTValidation, getProductsBySearch);
+router.get(
+  "/low-stock",
+  [JWTValidation, RoleValidation],
+  getProductsWithLowStock
+);
 router.get("/:id", JWTValidation, getProduct);
 router.post(
   "/",

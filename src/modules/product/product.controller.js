@@ -7,6 +7,7 @@ import {
   addProductStock,
   subtractProductStock,
   findProductsBySearchParam,
+  findProductsWithLowStock,
 } from "./product.service.js";
 
 export const getProducts = async (req, res) => {
@@ -95,6 +96,23 @@ export const updateProductStock = async (req, res, next) => {
 
     res.status(200).json({
       data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getProductsWithLowStock = async (req, res, next) => {
+  try {
+    // const from = Number(req.query.from) || 0;
+    const limit = Number(req.query.limit) || 10;
+    const { data } = await findProductsWithLowStock({ limit });
+
+    const productsWithLowStock = data.filter((product) => product.stock < 5);
+
+    res.status(200).json({
+      data: productsWithLowStock,
+      total: productsWithLowStock.length,
     });
   } catch (error) {
     next(error);
