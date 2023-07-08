@@ -25,7 +25,7 @@ router.post(
     check("password", "Password is required")
       .not()
       .isEmpty()
-      .isLength({ min: 6 }),
+      .isLength({ min: 4 }),
     Validation,
   ],
   addUser
