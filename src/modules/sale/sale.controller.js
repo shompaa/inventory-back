@@ -1,13 +1,18 @@
-import { findSales, findSaleById, createSale, removeSale } from "./sale.service.js";
+import {
+  findSales,
+  findSaleById,
+  createSale,
+  removeSale,
+} from "./sale.service.js";
 
 export const getSales = async (req, res) => {
-  const from = Number(req.query.from) || 0;
-  const limit = Number(req.query.limit) || 5;
-  const { data, total } = await findSales({ from, limit });
+  const startAt = req.query.startAt || null;
+  const pageSize = Number(req.query.pageSize) || 5;
+  const { data, hasMore } = await findSales({ pageSize, startAt });
 
   res.status(200).json({
     data,
-    total,
+    hasMore,
   });
 };
 

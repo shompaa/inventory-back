@@ -6,19 +6,21 @@ import {
 import { db } from "../../database/config.js";
 import { uuid } from "../../utils/index.js";
 
-export const findSales = async ({ limit }) => {
+export const findSales = async ({ pageSize, startAt }) => {
   try {
     const ref = db.ref("/sales");
-    const snapshot = await ref
-      .orderByChild("date")
-      // .limitToFirst(limit)
-      .once("value");
+    let query = ref.orderByChild("date");
+    if (startAt) {
+      query = query.startAt(startAt);
+    }
+    const snapshot = await query.limitToFirst(pageSize + 1).once("value");
+
     const sales = snapshot.val();
 
     if (!sales) {
       return {
         data: [],
-        total: 0,
+        hasMore: false,
       };
     }
 
@@ -28,8 +30,8 @@ export const findSales = async ({ limit }) => {
     salesWithId.reverse();
 
     return {
-      data: salesWithId,
-      total: salesWithId.length,
+      data: salesWithId.slice(0, pageSize),
+      hasMore: salesWithId.length > pageSize,
     };
   } catch (error) {
     throw error;
