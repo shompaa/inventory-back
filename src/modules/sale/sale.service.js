@@ -8,15 +8,15 @@ import { uuid } from "../../utils/index.js";
 
 export const findSales = async ({ pageSize, startAt }) => {
   try {
+    console.log("findSales", { pageSize, startAt });
     const ref = db.ref("/sales");
-    let query = ref.orderByChild("date");
-    if (startAt) {
-      query = query.startAt(startAt);
-    }
-    const snapshot = await query.limitToFirst(pageSize + 1).once("value");
+    let query = ref
+      .orderByChild("date")
+      .startAt(startAt)
+      .limitToLast(pageSize + 1);
+    const snapshot = await query.once("value");
 
     const sales = snapshot.val();
-
     if (!sales) {
       return {
         data: [],

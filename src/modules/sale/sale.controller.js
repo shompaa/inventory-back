@@ -7,7 +7,7 @@ import {
 
 export const getSales = async (req, res) => {
   const startAt = req.query.startAt || null;
-  const pageSize = Number(req.query.pageSize) || 5;
+  const pageSize = Number(req.query.pageSize) || 10;
   const { data, hasMore } = await findSales({ pageSize, startAt });
 
   res.status(200).json({
