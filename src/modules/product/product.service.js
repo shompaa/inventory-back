@@ -10,8 +10,9 @@
  * @property {string} description
  */
 
-import { db } from "../../database/config.js";
+import { db, storage } from "../../database/config.js";
 import createHttpError from "http-errors";
+import fs from "fs";
 
 export const findProducts = async ({ from, limit }) => {
   try {
@@ -34,6 +35,40 @@ export const findProducts = async ({ from, limit }) => {
     return {
       data: productsWithId,
       total: productsWithId.length,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const findProductsPaginated = async ({ pageSize, startAt }) => {
+  try {
+    const ref = db.ref("/products");
+    let query = ref.orderByKey();
+
+    if (startAt) {
+      query = query.startAt(startAt);
+    }
+
+    const snapshot = await query.limitToFirst(pageSize + 1).once("value");
+
+    const products = snapshot.val();
+
+    if (!products) {
+      return {
+        data: [],
+        hasMore: false,
+      };
+    }
+
+    const productsWithId = Object.entries(products)
+      .map(([id, product]) => ({ ...product, id }))
+      .filter((product) => product.deleted !== true);
+    productsWithId.reverse();
+
+    return {
+      data: productsWithId.slice(0, pageSize),
+      hasMore: productsWithId.length > pageSize,
     };
   } catch (error) {
     throw error;
@@ -88,15 +123,63 @@ export const findProductById = async (id) => {
   }
 };
 
-export const createProduct = async (productData) => {
+export const createProduct = async (productData, file) => {
   try {
     const { user, ...product } = productData;
     product.isDeleted = false;
-    const productsRef = db.ref("/products");
-    const newProductRef = productsRef.push();
-    await newProductRef.set(product);
 
-    return { ...product, id: newProductRef.key };
+    if (file) {
+      const bucket = storage.bucket(process.env.FIREBASE_STORAGE_BUCKET);
+      const uniqueName = Date.now() + "-" + file.originalname;
+      const fileUpload = bucket.file(uniqueName);
+
+      const blobStream = fileUpload.createWriteStream({
+        metadata: {
+          contentType: file.mimetype,
+        },
+      });
+
+      const streamPromise = new Promise((resolve, reject) => {
+        blobStream.on("error", (error) => {
+          reject(new createHttpError(404, `Bucket not found, ${error}`));
+        });
+
+        blobStream.on("finish", async () => {
+          await fileUpload.makePublic();
+
+          const url = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
+
+          product.imageUrl = url;
+
+          const productsRef = db.ref("/products");
+          const newProductRef = productsRef.push();
+          await newProductRef.set(product);
+
+          
+          fs.unlink(file.path, (err) => {
+            if (err) {
+              console.error(`Failed to delete local image.${err}`);
+            } else {
+              console.log("Local image was deleted");
+            }
+          });
+
+          resolve({ ...product, id: newProductRef.key });
+        });
+      });
+
+      fs.createReadStream(file.path).pipe(blobStream);
+
+      return await streamPromise;
+    } else {
+      product.imageUrl = productData.imageUrl || null;
+
+      const productsRef = db.ref("/products");
+      const newProductRef = productsRef.push();
+      await newProductRef.set(product);
+
+      return { ...product, id: newProductRef.key };
+    }
   } catch (error) {
     throw error;
   }
@@ -235,4 +318,3 @@ export const findProductsWithLowStock = async ({ limit }) => {
     throw error;
   }
 };
-
