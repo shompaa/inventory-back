@@ -20,6 +20,18 @@ export const getProducts = async (req, res) => {
     total,
   });
 };
+
+export const getProductsPaginated = async (req, res) => {
+  const startAt = req.query.startAt || null;
+  const pageSize = Number(req.query.pageSize) || 10;
+  const { data, hasMore } = await findProducts({ pageSize, startAt });
+
+  res.status(200).json({
+    data,
+    hasMore,
+  });
+};
+
 export const getProductsBySearch = async (req, res) => {
   const from = Number(req.query.from) || 0;
   const limit = Number(req.query.limit) || 10;
@@ -47,7 +59,8 @@ export const getProduct = async (req, res, next) => {
 
 export const addProduct = async (req, res, next) => {
   try {
-    const data = await createProduct(req.body);
+    const { body, file } = req;
+    const data = await createProduct(body, file);
     res.status(201).json({
       data,
     });

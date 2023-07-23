@@ -1,4 +1,4 @@
-import admin from 'firebase-admin';
+import admin from "firebase-admin";
 
 admin.initializeApp({
   credential: admin.credential.cert({
@@ -15,6 +15,8 @@ admin.initializeApp({
     client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
   }),
   databaseURL: process.env.FIREBASE_DATABASE_URL,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
 });
 
 export const db = admin.database();
+export const storage = admin.storage();

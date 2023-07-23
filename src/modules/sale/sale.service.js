@@ -8,7 +8,6 @@ import { uuid } from "../../utils/index.js";
 
 export const findSales = async ({ pageSize, startAt }) => {
   try {
-    console.log("findSales", { pageSize, startAt });
     const ref = db.ref("/sales");
     let query = ref
       .orderByChild("date")

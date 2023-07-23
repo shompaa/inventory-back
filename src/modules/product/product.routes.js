@@ -9,16 +9,30 @@ import {
   updateProductStock,
   getProductsBySearch,
   getProductsWithLowStock,
+  getProductsPaginated,
 } from "./product.controller.js";
 import {
   JWTValidation,
   RoleValidation,
   Validation,
 } from "../../middlewares/index.middleware.js";
+import multer from "multer";
+import path from "path";
 
 const router = express.Router();
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "src/uploads/"); // Aquí puedes cambiar a tu directorio de destino
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage, dest: "uploads/" });
 
 router.get("/", JWTValidation, getProducts);
+router.get("/paginated", JWTValidation, getProductsPaginated);
 router.get("/search/:search", JWTValidation, getProductsBySearch);
 router.get(
   "/low-stock",
@@ -28,6 +42,7 @@ router.get(
 router.get("/:id", JWTValidation, getProduct);
 router.post(
   "/",
+  upload.single("image"),
   [
     JWTValidation,
     check("name", "Name is required").not().isEmpty(),
