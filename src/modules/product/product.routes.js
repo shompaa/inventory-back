@@ -66,6 +66,7 @@ router.post(
 );
 router.put(
   "/:id",
+  upload.single("image"),
   [
     JWTValidation,
     check("name", "Name is required").not().isEmpty(),

@@ -32,14 +32,17 @@ export const findProducts = async ({ from, limit }) => {
       return { ...product, id };
     });
 
+    const filteredProducts = productsWithId.filter(product => !product.isDeleted);
+
     return {
-      data: productsWithId,
-      total: productsWithId.length,
+      data: filteredProducts,
+      total: filteredProducts.length,
     };
   } catch (error) {
     throw error;
   }
 };
+
 
 export const findProductsPaginated = async ({ pageSize, startAt }) => {
   try {
@@ -64,11 +67,17 @@ export const findProductsPaginated = async ({ pageSize, startAt }) => {
     const productsWithId = Object.entries(products)
       .map(([id, product]) => ({ ...product, id }))
       .filter((product) => product.deleted !== true);
-    productsWithId.reverse();
+
+    let nextPageStartAt = null;
+    if (productsWithId.length > pageSize) {
+      nextPageStartAt = productsWithId[productsWithId.length - 1].id;
+      productsWithId.pop();
+    }
 
     return {
-      data: productsWithId.slice(0, pageSize),
-      hasMore: productsWithId.length > pageSize,
+      data: productsWithId,
+      hasMore: nextPageStartAt !== null,
+      startAt: nextPageStartAt,
     };
   } catch (error) {
     throw error;
@@ -155,7 +164,6 @@ export const createProduct = async (productData, file) => {
           const newProductRef = productsRef.push();
           await newProductRef.set(product);
 
-          
           fs.unlink(file.path, (err) => {
             if (err) {
               console.error(`Failed to delete local image.${err}`);
@@ -185,7 +193,7 @@ export const createProduct = async (productData, file) => {
   }
 };
 
-export const editProduct = async (id, productData) => {
+export const editProduct = async (id, productData, file) => {
   try {
     const { user, ...product } = productData;
 
@@ -197,6 +205,51 @@ export const editProduct = async (id, productData) => {
       throw new createHttpError(404, "Product not found");
     }
 
+    if (file) {
+      const bucket = storage.bucket(process.env.FIREBASE_STORAGE_BUCKET);
+      const uniqueName = Date.now() + "-" + file.originalname;
+      const fileUpload = bucket.file(uniqueName);
+
+      const blobStream = fileUpload.createWriteStream({
+        metadata: {
+          contentType: file.mimetype,
+        },
+      });
+
+      const streamPromise = new Promise((resolve, reject) => {
+        blobStream.on("error", (error) => {
+          reject(new createHttpError(404, `Bucket not found, ${error}`));
+        });
+
+        blobStream.on("finish", async () => {
+          await fileUpload.makePublic();
+        
+          const url = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
+        
+          product.imageUrl = url;
+        
+          await productRef.update(product);
+        
+          fs.unlink(file.path, (err) => {
+            if (err) {
+              console.error(`Failed to delete local image.${err}`);
+            } else {
+              console.log("Local image was deleted");
+            }
+          });
+        
+          resolve({ ...product, id: productRef.key });
+
+        });
+      });
+
+      fs.createReadStream(file.path).pipe(blobStream);
+
+      return await streamPromise;
+    } else {
+      product.imageUrl = productData.imageUrl || existingProduct?.imageUrl;
+    }
+
     const updates = {
       ...product,
       name: product.name || existingProduct.name,
@@ -205,7 +258,6 @@ export const editProduct = async (id, productData) => {
       size: product.size || existingProduct.size,
       price: product.price || existingProduct.price,
       stock: product.stock || existingProduct.stock,
-      imageUrl: product?.imageUrl || existingProduct?.imageUrl,
       isDeleted: false,
     };
 
@@ -217,6 +269,7 @@ export const editProduct = async (id, productData) => {
     throw error;
   }
 };
+
 
 export const removeProduct = async (id) => {
   try {

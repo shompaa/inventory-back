@@ -8,6 +8,7 @@ import {
   subtractProductStock,
   findProductsBySearchParam,
   findProductsWithLowStock,
+  findProductsPaginated,
 } from "./product.service.js";
 
 export const getProducts = async (req, res) => {
@@ -22,13 +23,20 @@ export const getProducts = async (req, res) => {
 };
 
 export const getProductsPaginated = async (req, res) => {
-  const startAt = req.query.startAt || null;
-  const pageSize = Number(req.query.pageSize) || 10;
-  const { data, hasMore } = await findProducts({ pageSize, startAt });
+  let startAt = Number(req.query.startAt);
+  startAt = isNaN(startAt) || startAt < 0 ? null : startAt;
+  let pageSize = Number(req.query.pageSize);
+  pageSize = isNaN(pageSize) || pageSize <= 0 ? 5 : pageSize;
+  const {
+    data,
+    hasMore,
+    startAt: start,
+  } = await findProductsPaginated({ pageSize, startAt });
 
   res.status(200).json({
     data,
     hasMore,
+    startAt: start,
   });
 };
 
@@ -71,10 +79,11 @@ export const addProduct = async (req, res, next) => {
 
 export const updateProduct = async (req, res, next) => {
   try {
+    const { file } = req;
     const { id } = req.params;
-    const user = await editProduct(id, req.body);
+    const product = await editProduct(id, req.body, file);
     res.status(200).json({
-      data: user,
+      data: product,
     });
   } catch (error) {
     next(error);
